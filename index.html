@@ -219,6 +219,8 @@
   var CONSECUTIVE_FRAMES_NEEDED = 2;
   var RUN_TIMEOUT_MS = 15000;     // veiligheidslimiet per poging
   var ANALYSIS_W = 160, ANALYSIS_H = 90; // laagresolutie-canvas voor bewegingsanalyse
+  var PIXEL_DIFF_THRESHOLD = 25;  // hoeveel 1 pixel moet veranderen om als 'bewogen' te tellen
+  var prevFrameData = null;       // vorige volledige frame, voor pixel-voor-pixel vergelijking
 
   var video = document.createElement('video');
   video.setAttribute('playsinline', '');
@@ -400,7 +402,7 @@
     state.results = { t5:null, t10:null, t20:null, t30:null };
     state.armedIndex = 0;
     state.consecutiveHits = 0;
-    prevLumaMap = {};
+    prevFrameData = null;
     state.running = true;
     state.startTime = performance.now();
     els.btnStart.disabled = true;
@@ -454,20 +456,19 @@
       var frame = analysisCtx.getImageData(0, 0, ANALYSIS_W, ANALYSIS_H).data;
 
       if (elapsedMs >= START_ARM_DELAY_MS && state.armedIndex < GATES.length){
-        var luma = zoneLuma(frame, state.calibration[state.armedIndex].xRatio);
-        var prevZoneLuma = state.prevLumaForZone(state.armedIndex);
-        var threshold = 50 - (state.sensitivity/100) * 45; // hoger sensitivity => lager threshold
-        var diff = (prevZoneLuma !== undefined && prevZoneLuma !== null) ? Math.abs(luma - prevZoneLuma) : null;
+        // % van de pixels in de zone dat merkbaar veranderd is t.o.v. het vorige beeld.
+        // Dit telt alleen het bewegende deel mee, ongeacht hoe groot de zone verder is.
+        var fractionThreshold = 0.30 - (state.sensitivity/100) * 0.27; // hoger = gevoeliger
+        var fraction = prevFrameData ? zoneMotionFraction(frame, prevFrameData, state.calibration[state.armedIndex].xRatio) : null;
 
-        // Live debugweergave: laat zien wat er werkelijk gemeten wordt.
         els.debugStatus.textContent =
           'zone ' + GATES[state.armedIndex].label +
-          ' · diff ' + (diff === null ? '—' : diff.toFixed(1)) +
-          ' / drempel ' + threshold.toFixed(1) +
+          ' · beweging ' + (fraction === null ? '—' : (fraction * 100).toFixed(1) + '%') +
+          ' / drempel ' + (fractionThreshold * 100).toFixed(1) + '%' +
           ' · video ' + video.videoWidth + '×' + video.videoHeight;
 
-        if (diff !== null){
-          if (diff > threshold){
+        if (fraction !== null){
+          if (fraction > fractionThreshold){
             state.consecutiveHits++;
             if (state.consecutiveHits >= CONSECUTIVE_FRAMES_NEEDED){
               registerGateHit(state.armedIndex, elapsedMs);
@@ -476,8 +477,8 @@
             state.consecutiveHits = 0;
           }
         }
-        state.setPrevLumaForZone(state.armedIndex, luma);
       }
+      prevFrameData = frame;
     } else {
       els.debugStatus.textContent = 'video nog niet klaar (readyState ' + video.readyState + ')';
     }
@@ -485,26 +486,23 @@
     if (state.running) requestAnimationFrame(analysisLoop);
   }
 
-  // eenvoudige per-zone geheugenopslag voor vorige helderheid
-  var prevLumaMap = {};
-  state.prevLumaForZone = function(i){ return prevLumaMap[i]; };
-  state.setPrevLumaForZone = function(i, v){ prevLumaMap[i] = v; };
-
-  function zoneLuma(frameData, xRatio){
+  function zoneMotionFraction(currFrame, prevFrame, xRatio){
     var zw = Math.max(2, Math.round(ANALYSIS_W * state.zoneWidthRatio));
     var cx = Math.round(xRatio * ANALYSIS_W);
     var x0 = Math.max(0, cx - Math.round(zw/2));
     var x1 = Math.min(ANALYSIS_W, x0 + zw);
     var y0 = Math.round(ANALYSIS_H * 0.04), y1 = Math.round(ANALYSIS_H * 0.96);
-    var sum = 0, count = 0;
+    var changed = 0, total = 0;
     for (var y = y0; y < y1; y++){
       for (var x = x0; x < x1; x++){
         var idx = (y * ANALYSIS_W + x) * 4;
-        sum += 0.299*frameData[idx] + 0.587*frameData[idx+1] + 0.114*frameData[idx+2];
-        count++;
+        var currLuma = 0.299*currFrame[idx] + 0.587*currFrame[idx+1] + 0.114*currFrame[idx+2];
+        var prevLuma = 0.299*prevFrame[idx] + 0.587*prevFrame[idx+1] + 0.114*prevFrame[idx+2];
+        if (Math.abs(currLuma - prevLuma) > PIXEL_DIFF_THRESHOLD) changed++;
+        total++;
       }
     }
-    return count ? sum / count : 0;
+    return total ? changed / total : 0;
   }
 
   function registerGateHit(index, elapsedMs){
@@ -512,7 +510,6 @@
     state.results[key] = elapsedMs / 1000;
     updateResultsRow(index, state.results[key]);
     state.consecutiveHits = 0;
-    prevLumaMap[index] = null;
     state.armedIndex++;
 
     if (state.armedIndex < GATES.length){
