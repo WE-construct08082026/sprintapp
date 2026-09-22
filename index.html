@@ -264,7 +264,6 @@
     startTime: 0,
     armedIndex: 0,
     consecutiveHits: 0,
-    prevLuma: null,
     results: { t5:null, t10:null, t20:null, t30:null },
     timeoutHandle: null
   };
@@ -399,7 +398,7 @@
     state.results = { t5:null, t10:null, t20:null, t30:null };
     state.armedIndex = 0;
     state.consecutiveHits = 0;
-    state.prevLuma = null;
+    prevLumaMap = {};
     state.running = true;
     state.startTime = performance.now();
     els.btnStart.disabled = true;
@@ -452,8 +451,9 @@
 
       if (elapsedMs >= START_ARM_DELAY_MS && state.armedIndex < GATES.length){
         var luma = zoneLuma(frame, state.calibration[state.armedIndex].xRatio);
-        if (state.prevLuma !== null){
-          var diff = Math.abs(luma - state.prevLumaForZone(state.armedIndex));
+        var prevZoneLuma = state.prevLumaForZone(state.armedIndex);
+        if (prevZoneLuma !== undefined && prevZoneLuma !== null){
+          var diff = Math.abs(luma - prevZoneLuma);
           var threshold = 50 - (state.sensitivity/100) * 45; // hoger sensitivity => lager threshold
           if (diff > threshold){
             state.consecutiveHits++;
