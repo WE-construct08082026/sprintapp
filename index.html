@@ -2,7 +2,7 @@
 <html lang="nl">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 <title>Sprint Timer</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -14,189 +14,203 @@
     --border:#2A3640;
     --text:#EDF1F4;
     --muted:#8A9BA8;
-    --track:#FF6A3D;      /* startsignaal / actie-accent */
-    --split:#2FD9A8;      /* gemeten tijden */
+    --track:#FF6A3D;
+    --split:#2FD9A8;
     --danger:#FF5A5A;
   }
   *{ box-sizing:border-box; }
   html,body{
     margin:0; padding:0; background:var(--bg); color:var(--text);
     font-family:'Inter',system-ui,-apple-system,sans-serif;
-    -webkit-tap-highlight-color:transparent;
+    -webkit-tap-highlight-color:transparent; height:100%;
+    overflow:hidden;
   }
-  body{ padding:16px; padding-bottom:48px; }
-  .wrap{ max-width:520px; margin:0 auto; }
-
-  header{ margin-bottom:20px; }
-  header h1{
-    font-size:1.5rem; margin:0 0 2px; font-weight:700; letter-spacing:-0.01em;
-  }
-  header p{ margin:0; color:var(--muted); font-size:0.9rem; }
-  .gates{ display:flex; gap:6px; margin-top:10px; }
-  .gates span{
-    font-family:'JetBrains Mono',monospace; font-size:0.75rem; color:var(--muted);
-    border:1px solid var(--border); border-radius:6px; padding:3px 8px;
+  .app{
+    display:flex; flex-direction:column; height:100dvh; height:100vh;
+    padding:env(safe-area-inset-top,0) env(safe-area-inset-right,0) env(safe-area-inset-bottom,0) env(safe-area-inset-left,0);
   }
 
-  section.panel{
-    background:var(--panel); border:1px solid var(--border); border-radius:14px;
-    padding:16px; margin-bottom:14px;
+  /* ---------- Topbar ---------- */
+  .topbar{
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    padding:8px 10px; border-bottom:1px solid var(--border); flex:0 0 auto;
   }
-  section.panel h2{
-    font-size:0.95rem; margin:0 0 12px; font-weight:600; display:flex;
-    align-items:center; gap:8px;
+  .topbar h1{ font-size:1.05rem; margin:0; font-weight:700; letter-spacing:-0.01em; }
+  .gates-inline{ display:flex; gap:4px; margin-top:2px; }
+  .gates-inline span{
+    font-family:'JetBrains Mono',monospace; font-size:0.65rem; color:var(--muted);
+    border:1px solid var(--border); border-radius:5px; padding:1px 5px;
   }
-  section.panel h2 .step{
-    width:22px; height:22px; border-radius:50%; background:var(--panel-2);
-    border:1px solid var(--border); display:flex; align-items:center;
-    justify-content:center; font-size:0.75rem; color:var(--muted); flex-shrink:0;
-  }
-  .panel.done h2 .step{ background:var(--split); color:#0F151B; border-color:var(--split); }
-
-  label{ display:block; font-size:0.85rem; color:var(--muted); margin-bottom:6px; }
-  input[type=text], input[type=date]{
-    width:100%; background:var(--panel-2); border:1px solid var(--border);
-    color:var(--text); padding:10px 12px; border-radius:10px; font-size:1rem;
-    margin-bottom:12px; font-family:inherit;
-  }
-  input[type=text]:focus, input[type=date]:focus{ outline:2px solid var(--track); outline-offset:1px; }
-
-  .row2{ display:flex; gap:10px; }
-  .row2 > div{ flex:1; }
-
   button{
-    font-family:inherit; font-size:0.95rem; font-weight:600; border:none;
-    border-radius:10px; padding:12px 16px; cursor:pointer; width:100%;
+    font-family:inherit; font-weight:600; border:none; border-radius:9px;
+    cursor:pointer;
   }
   button.primary{ background:var(--track); color:#1A0F09; }
   button.secondary{ background:var(--panel-2); color:var(--text); border:1px solid var(--border); }
   button.success{ background:var(--split); color:#08251C; }
   button:disabled{ opacity:0.4; cursor:not-allowed; }
   button:active:not(:disabled){ transform:scale(0.98); }
+  #btn-camera{ padding:9px 14px; font-size:0.85rem; flex:0 0 auto; }
 
-  .stage-box{
-    position:relative; width:100%; border-radius:10px; overflow:hidden;
-    background:#000; margin-bottom:10px; touch-action:manipulation;
+  /* ---------- Collapsible kalibratiebalk ---------- */
+  .calib-bar{ flex:0 0 auto; border-bottom:1px solid var(--border); background:var(--panel); }
+  .calib-toggle{
+    width:100%; background:transparent; border:none; color:var(--text);
+    display:flex; align-items:center; justify-content:space-between;
+    padding:7px 12px; font-size:0.82rem;
   }
-  canvas#stage{ width:100%; display:block; }
-  .stage-hint{
-    position:absolute; top:8px; left:8px; right:8px; text-align:center;
-    background:rgba(0,0,0,0.55); color:#fff; font-size:0.8rem; padding:6px 10px;
-    border-radius:8px; pointer-events:none;
+  .calib-toggle .chev{ color:var(--muted); transition:transform 0.15s; font-size:0.7rem; }
+  .calib-bar.collapsed .calib-body{ display:none; }
+  .calib-bar.collapsed .chev{ transform:rotate(-90deg); }
+  .calib-bar.done .calib-toggle .dot{ background:var(--split); }
+  .calib-toggle .dot{
+    width:8px; height:8px; border-radius:50%; background:var(--track); display:inline-block; margin-right:7px;
   }
-
-  .sliders{ display:flex; flex-direction:column; gap:10px; margin-top:4px; }
-  .sliders .slabel{
-    display:flex; justify-content:space-between; font-size:0.8rem; color:var(--muted);
+  .calib-body{ padding:0 12px 10px; }
+  .status{
+    font-size:0.78rem; padding:7px 10px; border-radius:9px; margin-bottom:8px;
+    background:var(--panel-2); color:var(--muted); border:1px solid var(--border);
   }
+  .status.error{ color:var(--danger); border-color:var(--danger); }
+  .status.ok{ color:var(--split); border-color:var(--split); }
+  .calib-body button.secondary{ padding:7px 12px; font-size:0.8rem; margin-bottom:8px; }
+  .sliders{ display:flex; gap:14px; flex-wrap:wrap; }
+  .sliders > div{ flex:1; min-width:140px; }
+  .sliders .slabel{ display:flex; justify-content:space-between; font-size:0.72rem; color:var(--muted); }
   input[type=range]{ width:100%; accent-color:var(--track); }
 
+  /* ---------- Sessie: camera boven, 2 kolommen onder ---------- */
+  .session{ flex:1 1 auto; display:flex; flex-direction:column; min-height:0; }
+  .cam-pane{
+    flex:1 1 50%; min-height:0; background:#000; position:relative; overflow:hidden;
+  }
+  canvas#stage{ width:100%; height:100%; display:block; }
+  .cam-placeholder{
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    color:var(--muted); font-size:0.85rem; text-align:center; padding:20px;
+  }
+
+  .lower-pane{ flex:1 1 50%; min-height:0; display:flex; border-top:1px solid var(--border); }
+  .pane-left, .pane-right{
+    flex:1; min-width:0; padding:10px 12px; overflow-y:auto;
+  }
+  .pane-left{ border-right:1px solid var(--border); display:flex; flex-direction:column; gap:8px; }
+  .pane-right{ display:flex; flex-direction:column; }
+
+  label{ display:block; font-size:0.72rem; color:var(--muted); margin-bottom:3px; }
+  input[type=text], input[type=date]{
+    width:100%; background:var(--panel-2); border:1px solid var(--border);
+    color:var(--text); padding:7px 9px; border-radius:8px; font-size:0.88rem;
+    font-family:inherit;
+  }
+  input[type=text]:focus, input[type=date]:focus{ outline:2px solid var(--track); outline-offset:1px; }
+  .row2{ display:flex; gap:8px; }
+  .row2 > div{ flex:1; }
+
   .timer{
-    font-family:'JetBrains Mono',monospace; font-size:3rem; font-weight:700;
-    text-align:center; letter-spacing:-0.02em; margin:6px 0 14px;
-    font-variant-numeric:tabular-nums;
+    font-family:'JetBrains Mono',monospace; font-weight:700;
+    text-align:center; letter-spacing:-0.02em; font-variant-numeric:tabular-nums;
+    font-size:2.1rem; line-height:1.1; margin:2px 0;
   }
   .timer.idle{ color:var(--muted); }
   .timer.running{ color:var(--track); }
   .timer.done{ color:var(--split); }
 
-  table{ width:100%; border-collapse:collapse; margin-bottom:14px; }
-  th,td{
-    text-align:left; padding:9px 6px; border-bottom:1px solid var(--border);
-    font-size:0.9rem;
-  }
-  th{ color:var(--muted); font-weight:500; }
-  td.time{
-    font-family:'JetBrains Mono',monospace; font-variant-numeric:tabular-nums;
-    text-align:right; font-weight:600;
-  }
+  #btn-start{ padding:11px; font-size:0.92rem; width:100%; }
+  .btnrow{ display:flex; gap:8px; }
+  .btnrow > button{ flex:1; padding:9px; font-size:0.82rem; }
+
+  .pane-right h2{ font-size:0.8rem; color:var(--muted); font-weight:600; margin:0 0 6px; }
+  table{ width:100%; border-collapse:collapse; }
+  th,td{ text-align:left; padding:6px 4px; border-bottom:1px solid var(--border); font-size:0.85rem; }
+  th{ color:var(--muted); font-weight:500; font-size:0.72rem; }
+  td.time{ font-family:'JetBrains Mono',monospace; font-variant-numeric:tabular-nums; text-align:right; font-weight:600; }
   td.time.pending{ color:var(--muted); font-weight:400; }
   td.time.measured{ color:var(--split); }
 
-  .status{
-    font-size:0.85rem; padding:10px 12px; border-radius:10px; margin-bottom:12px;
-    background:var(--panel-2); color:var(--muted); border:1px solid var(--border);
+  /* Compacter op erg lage viewports (korte landscape-hoogte) */
+  @media (max-height: 420px){
+    .timer{ font-size:1.6rem; }
+    #btn-start{ padding:8px; }
+    .pane-left, .pane-right{ padding:6px 10px; gap:5px; }
   }
-  .status.error{ color:var(--danger); border-color:var(--danger); }
-  .status.ok{ color:var(--split); border-color:var(--split); }
 
-  .btnrow{ display:flex; gap:10px; margin-top:4px; }
-  .btnrow > button{ flex:1; }
-
-  footer{ text-align:center; color:var(--muted); font-size:0.75rem; margin-top:20px; }
+  /* Eenvoudige fallback als het toestel toch rechtop staat */
+  @media (orientation: portrait){
+    .lower-pane{ flex-direction:column; overflow-y:auto; }
+    .pane-left{ border-right:none; border-bottom:1px solid var(--border); }
+  }
 </style>
 </head>
 <body>
-<div class="wrap">
+<div class="app">
 
-  <header>
-    <h1>Sprint Timer</h1>
-    <p>30m sprint met tussentijden — automatische meting via video</p>
-    <div class="gates"><span>5m</span><span>10m</span><span>20m</span><span>30m</span></div>
-  </header>
-
-  <!-- STAP 1: Speler + camera -->
-  <section class="panel" id="panel-setup">
-    <h2><span class="step">1</span>Speler en camera</h2>
-    <div class="row2">
-      <div>
-        <label for="player">Spelernaam</label>
-        <input type="text" id="player" list="players" placeholder="Naam invullen">
-        <datalist id="players"></datalist>
-      </div>
-      <div>
-        <label for="date">Datum</label>
-        <input type="date" id="date">
-      </div>
+  <div class="topbar">
+    <div>
+      <h1>Sprint Timer</h1>
+      <div class="gates-inline"><span>5m</span><span>10m</span><span>20m</span><span>30m</span></div>
     </div>
     <button class="primary" id="btn-camera">Camera starten</button>
-    <div class="stage-box" id="stage-box" style="display:none;">
-      <canvas id="stage"></canvas>
-      <div class="stage-hint" id="stage-hint" style="display:none;"></div>
-    </div>
-  </section>
+  </div>
 
-  <!-- STAP 2: Kalibratie -->
-  <section class="panel" id="panel-calibrate" style="display:none;">
-    <h2><span class="step">2</span>Meetpunten markeren</h2>
-    <div class="status" id="calib-status">Tik in de camerabeelden hierboven, na elkaar, op de plek van het 5m-, 10m-, 20m- en 30m-punt (bv. waar een kegel staat).</div>
-    <button class="secondary" id="btn-recalibrate">Opnieuw markeren</button>
-    <div class="sliders">
-      <div>
-        <div class="slabel"><span>Zonebreedte</span><span id="width-val"></span></div>
-        <input type="range" id="zone-width" min="3" max="20" value="7">
+  <div class="calib-bar" id="calib-bar" style="display:none;">
+    <button class="calib-toggle" id="calib-toggle">
+      <span><span class="dot" id="calib-dot"></span><span id="calib-toggle-label">Meetpunten markeren</span></span>
+      <span class="chev">▾</span>
+    </button>
+    <div class="calib-body" id="calib-body">
+      <div class="status" id="calib-status">Tik in de camerabeelden hieronder, na elkaar, op de plek van het 5m-, 10m-, 20m- en 30m-punt.</div>
+      <button class="secondary" id="btn-recalibrate">Opnieuw markeren</button>
+      <div class="sliders">
+        <div>
+          <div class="slabel"><span>Zonebreedte</span><span id="width-val"></span></div>
+          <input type="range" id="zone-width" min="3" max="20" value="7">
+        </div>
+        <div>
+          <div class="slabel"><span>Gevoeligheid</span><span id="sens-val"></span></div>
+          <input type="range" id="sensitivity" min="1" max="100" value="55">
+        </div>
       </div>
-      <div>
-        <div class="slabel"><span>Gevoeligheid</span><span id="sens-val"></span></div>
-        <input type="range" id="sensitivity" min="1" max="100" value="55">
+    </div>
+  </div>
+
+  <div class="session">
+    <div class="cam-pane" id="cam-pane">
+      <canvas id="stage" style="display:none;"></canvas>
+      <div class="cam-placeholder" id="cam-placeholder">Druk op "Camera starten" om te beginnen.<br>Houd het toestel horizontaal (landscape).</div>
+    </div>
+
+    <div class="lower-pane">
+      <div class="pane-left">
+        <div class="row2">
+          <div>
+            <label for="player">Spelernaam</label>
+            <input type="text" id="player" list="players" placeholder="Naam">
+            <datalist id="players"></datalist>
+          </div>
+          <div>
+            <label for="date">Datum</label>
+            <input type="date" id="date">
+          </div>
+        </div>
+        <div class="timer idle" id="timer-display">0.00</div>
+        <button class="primary" id="btn-start" disabled>Start (met signaal)</button>
+        <div class="status" id="run-status" style="display:none;"></div>
+        <div class="btnrow">
+          <button class="secondary" id="btn-reset">Nieuwe poging</button>
+          <button class="success" id="btn-send" disabled>Versturen</button>
+        </div>
+        <div class="status" id="send-status" style="display:none;"></div>
+      </div>
+      <div class="pane-right">
+        <h2>Resultaten</h2>
+        <table>
+          <thead><tr><th>Punt</th><th style="text-align:right;">Tijd</th></tr></thead>
+          <tbody id="results-body"></tbody>
+        </table>
       </div>
     </div>
-  </section>
-
-  <!-- STAP 3: Start + timer -->
-  <section class="panel" id="panel-run" style="display:none;">
-    <h2><span class="step">3</span>Starten</h2>
-    <div class="timer idle" id="timer-display">0.00</div>
-    <button class="primary" id="btn-start">Start (met signaal)</button>
-    <div class="status" id="run-status" style="display:none;"></div>
-    <div class="status" id="debug-status" style="display:none; font-family:'JetBrains Mono',monospace; font-size:0.72rem;"></div>
-  </section>
-
-  <!-- STAP 4: Resultaten -->
-  <section class="panel" id="panel-results" style="display:none;">
-    <h2><span class="step">4</span>Resultaten</h2>
-    <table>
-      <thead><tr><th>Punt</th><th style="text-align:right;">Tijd</th></tr></thead>
-      <tbody id="results-body"></tbody>
-    </table>
-    <div class="btnrow">
-      <button class="secondary" id="btn-reset">Nieuwe poging</button>
-      <button class="success" id="btn-send" disabled>Verstuur naar spreadsheet</button>
-    </div>
-    <div class="status" id="send-status" style="display:none;"></div>
-  </section>
-
-  <footer>Eén sprint per keer · zorg voor een vast, zijdelings gerichte camera</footer>
+  </div>
 </div>
 
 <script>
@@ -204,8 +218,6 @@
   'use strict';
 
   // Vul dit in na het deployen van de Apps Script webapp (zie README.md).
-  // API_URL = de "Web app URL" die je krijgt bij Deploy > New deployment.
-  // API_TOKEN = moet exact overeenkomen met API_TOKEN in Code.gs.
   var API_URL = 'https://script.google.com/macros/s/AKfycbyXbFEAeA7RkHjQZaStndV9MZUvZBHtFuQX6C4PKGwS4GuHtMeKgC-969fIIpsKgQndKA/exec';
   var API_TOKEN = 'FC_Kleit_7589';
 
@@ -215,12 +227,17 @@
     { label: '20m', key: 't20' },
     { label: '30m', key: 't30' }
   ];
-  var START_ARM_DELAY_MS = 250;   // negeer detectie vlak na startsignaal
+  var START_ARM_DELAY_MS = 250;
   var CONSECUTIVE_FRAMES_NEEDED = 2;
-  var RUN_TIMEOUT_MS = 15000;     // veiligheidslimiet per poging
-  var ANALYSIS_W = 160, ANALYSIS_H = 90; // laagresolutie-canvas voor bewegingsanalyse
-  var PIXEL_DIFF_THRESHOLD = 25;  // hoeveel 1 pixel moet veranderen om als 'bewogen' te tellen
-  var prevFrameData = null;       // vorige volledige frame, voor pixel-voor-pixel vergelijking
+  var RUN_TIMEOUT_MS = 20000;
+  var ANALYSIS_W = 160, ANALYSIS_H = 90;
+  var PIXEL_DIFF_THRESHOLD = 25;
+  var prevFrameData = null;
+
+  // Startsequentie: 2 korte waarschuwingspiepjes, dan 1 lange startpiep.
+  var BEEP_SHORT_MS = 150;
+  var BEEP_PAUSE_MS = 1000; // stilte na elk van de 2 korte piepjes
+  var BEEP_LONG_MS = 450;
 
   var video = document.createElement('video');
   video.setAttribute('playsinline', '');
@@ -238,21 +255,20 @@
     players: document.getElementById('players'),
     date: document.getElementById('date'),
     btnCamera: document.getElementById('btn-camera'),
-    stageBox: document.getElementById('stage-box'),
-    stageHint: document.getElementById('stage-hint'),
-    panelCalibrate: document.getElementById('panel-calibrate'),
+    camPlaceholder: document.getElementById('cam-placeholder'),
+    calibBar: document.getElementById('calib-bar'),
+    calibToggle: document.getElementById('calib-toggle'),
+    calibDot: document.getElementById('calib-dot'),
+    calibToggleLabel: document.getElementById('calib-toggle-label'),
     calibStatus: document.getElementById('calib-status'),
     btnRecalibrate: document.getElementById('btn-recalibrate'),
     zoneWidth: document.getElementById('zone-width'),
     widthVal: document.getElementById('width-val'),
     sensitivity: document.getElementById('sensitivity'),
     sensVal: document.getElementById('sens-val'),
-    panelRun: document.getElementById('panel-run'),
     timerDisplay: document.getElementById('timer-display'),
     btnStart: document.getElementById('btn-start'),
     runStatus: document.getElementById('run-status'),
-    debugStatus: document.getElementById('debug-status'),
-    panelResults: document.getElementById('panel-results'),
     resultsBody: document.getElementById('results-body'),
     btnReset: document.getElementById('btn-reset'),
     btnSend: document.getElementById('btn-send'),
@@ -261,7 +277,8 @@
 
   var state = {
     cameraOn: false,
-    calibration: [],      // [{xRatio}] volgorde 5,10,20,30
+    calibrating: false,
+    calibration: [],
     zoneWidthRatio: 0.07,
     sensitivity: 55,
     running: false,
@@ -281,7 +298,7 @@
 
   function startCamera(){
     els.btnCamera.disabled = true;
-    els.btnCamera.textContent = 'Camera wordt gestart…';
+    els.btnCamera.textContent = 'Bezig…';
     navigator.mediaDevices.getUserMedia({
       audio: false,
       video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }
@@ -290,11 +307,12 @@
       return video.play();
     }).then(function(){
       state.cameraOn = true;
-      els.stageBox.style.display = 'block';
-      els.btnCamera.style.display = 'none';
-      els.panelCalibrate.style.display = 'block';
+      els.camPlaceholder.style.display = 'none';
+      stage.style.display = 'block';
+      els.btnCamera.textContent = 'Camera actief';
       sizeStage();
       requestAnimationFrame(drawLoop);
+      els.calibBar.style.display = 'block';
       enterCalibrationMode();
     }).catch(function(err){
       els.btnCamera.disabled = false;
@@ -308,28 +326,39 @@
     stage.width = w; stage.height = h;
   }
 
-  // ---------- Tekenen + kalibratietaps ----------
+  // ---------- Kalibratie (collapsible) ----------
   stage.addEventListener('click', function(evt){
     if (state.calibrating) handleCalibrationTap(evt);
+  });
+
+  els.calibToggle.addEventListener('click', function(){
+    els.calibBar.classList.toggle('collapsed');
+  });
+
+  els.btnRecalibrate.addEventListener('click', function(){
+    els.calibBar.classList.remove('collapsed');
+    enterCalibrationMode();
   });
 
   function enterCalibrationMode(){
     state.calibrating = true;
     state.calibration = [];
+    els.calibBar.classList.remove('done');
     updateCalibStatus();
+    updateStartAvailability();
   }
-
-  els.btnRecalibrate.addEventListener('click', enterCalibrationMode);
 
   function handleCalibrationTap(evt){
     var rect = stage.getBoundingClientRect();
-    var clickX = (evt.clientX - rect.left) / rect.width;   // 0..1 t.o.v. weergave
+    var clickX = (evt.clientX - rect.left) / rect.width;
     if (state.calibration.length >= GATES.length) return;
     state.calibration.push({ xRatio: clamp01(clickX) });
     updateCalibStatus();
     if (state.calibration.length === GATES.length){
       state.calibrating = false;
-      els.panelRun.style.display = 'block';
+      els.calibBar.classList.add('done');
+      els.calibToggleLabel.textContent = 'Gekalibreerd — tik om te wijzigen';
+      els.calibBar.classList.add('collapsed');
       updateStartAvailability();
     }
   }
@@ -337,10 +366,11 @@
   function updateCalibStatus(){
     var n = state.calibration.length;
     if (n < GATES.length){
+      els.calibToggleLabel.textContent = 'Meetpunten markeren (' + n + '/' + GATES.length + ')';
       els.calibStatus.textContent = 'Tik op het ' + GATES[n].label + '-punt (' + (n+1) + ' van ' + GATES.length + ').';
       els.calibStatus.className = 'status';
     } else {
-      els.calibStatus.textContent = 'Alle 4 punten gemarkeerd. Klaar om te starten.';
+      els.calibStatus.textContent = 'Alle 4 punten gemarkeerd.';
       els.calibStatus.className = 'status ok';
     }
   }
@@ -367,11 +397,9 @@
   function drawOverlays(){
     var w = stage.width, h = stage.height;
     state.calibration.forEach(function(pt, i){
-      drawZone(pt.xRatio, w, h, i < state.armedIndex ? '#2FD9A8' : (i === state.armedIndex && state.running ? '#FF6A3D' : 'rgba(255,255,255,0.35)'), GATES[i].label);
+      var color = i < state.armedIndex ? '#2FD9A8' : (i === state.armedIndex && state.running ? '#FF6A3D' : 'rgba(255,255,255,0.35)');
+      drawZone(pt.xRatio, w, h, color, GATES[i].label);
     });
-    if (state.calibrating && state.calibration.length < GATES.length){
-      // niets extra te tekenen, hint-tekst staat in status
-    }
   }
 
   function drawZone(xRatio, w, h, color, label){
@@ -381,13 +409,13 @@
     stageCtx.lineWidth = Math.max(2, w * 0.004);
     stageCtx.strokeRect(x, h*0.04, zw, h*0.92);
     stageCtx.fillStyle = color;
-    stageCtx.font = Math.round(h*0.045) + 'px Inter, sans-serif';
-    stageCtx.fillText(label, x, h*0.035 + h*0.045);
+    stageCtx.font = Math.round(h*0.06) + 'px Inter, sans-serif';
+    stageCtx.fillText(label, x, h*0.035 + h*0.06);
   }
 
   function clamp01(v){ return Math.max(0, Math.min(1, v)); }
 
-  // ---------- Start + detectie ----------
+  // ---------- Start: waarschuwingspiepjes -> lange piep -> meting ----------
   els.btnStart.addEventListener('click', startRun);
 
   function updateStartAvailability(){
@@ -399,27 +427,56 @@
       alert('Vul eerst een spelernaam in.');
       return;
     }
+    els.btnStart.disabled = true;
+    els.runStatus.style.display = 'block';
+    els.runStatus.className = 'status';
+    els.runStatus.textContent = 'Klaarmaken… let op de piepjes.';
+    els.timerDisplay.textContent = '0.00';
+    els.timerDisplay.className = 'timer idle';
+    els.btnSend.disabled = true;
+    buildResultsTable();
+
+    playStartSequence();
+    var totalDelay = (BEEP_SHORT_MS + BEEP_PAUSE_MS) * 2;
+    setTimeout(beginMeasurement, totalDelay);
+  }
+
+  function playStartSequence(){
+    try{
+      var ctx = new (window.AudioContext || window.webkitAudioContext)();
+      var t0 = ctx.currentTime;
+      scheduleBeep(ctx, t0, 700, BEEP_SHORT_MS/1000, 0.3);
+      var t1 = t0 + (BEEP_SHORT_MS + BEEP_PAUSE_MS)/1000;
+      scheduleBeep(ctx, t1, 700, BEEP_SHORT_MS/1000, 0.3);
+      var t2 = t1 + (BEEP_SHORT_MS + BEEP_PAUSE_MS)/1000;
+      scheduleBeep(ctx, t2, 1000, BEEP_LONG_MS/1000, 0.45);
+    } catch(e){ /* audio niet beschikbaar; meting start alsnog op tijd */ }
+  }
+
+  function scheduleBeep(ctx, startTime, freq, durationSec, vol){
+    var osc = ctx.createOscillator();
+    var gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(vol, startTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, startTime + durationSec);
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.start(startTime); osc.stop(startTime + durationSec + 0.02);
+  }
+
+  function beginMeasurement(){
     state.results = { t5:null, t10:null, t20:null, t30:null };
     state.armedIndex = 0;
     state.consecutiveHits = 0;
     prevFrameData = null;
     state.running = true;
     state.startTime = performance.now();
-    els.btnStart.disabled = true;
-    els.panelResults.style.display = 'none';
-    els.runStatus.style.display = 'block';
-    els.runStatus.className = 'status';
     els.runStatus.textContent = 'Meting loopt — wacht op 5m-punt…';
-    els.debugStatus.style.display = 'block';
-    els.debugStatus.textContent = '';
     els.timerDisplay.className = 'timer running';
-    playBeep();
 
     clearTimeout(state.timeoutHandle);
     state.timeoutHandle = setTimeout(function(){
-      if (state.running){
-        finishRun(true);
-      }
+      if (state.running) finishRun(true);
     }, RUN_TIMEOUT_MS);
 
     requestAnimationFrame(tickTimer);
@@ -433,20 +490,6 @@
     requestAnimationFrame(tickTimer);
   }
 
-  function playBeep(){
-    try{
-      var ctx = new (window.AudioContext || window.webkitAudioContext)();
-      var osc = ctx.createOscillator();
-      var gain = ctx.createGain();
-      osc.type = 'sine';
-      osc.frequency.value = 880;
-      gain.gain.setValueAtTime(0.4, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.18);
-      osc.connect(gain); gain.connect(ctx.destination);
-      osc.start(); osc.stop(ctx.currentTime + 0.2);
-    } catch(e){ /* audio niet beschikbaar, geen probleem voor de meting zelf */ }
-  }
-
   function analysisLoop(){
     if (!state.running) return;
     var elapsedMs = performance.now() - state.startTime;
@@ -456,16 +499,8 @@
       var frame = analysisCtx.getImageData(0, 0, ANALYSIS_W, ANALYSIS_H).data;
 
       if (elapsedMs >= START_ARM_DELAY_MS && state.armedIndex < GATES.length){
-        // % van de pixels in de zone dat merkbaar veranderd is t.o.v. het vorige beeld.
-        // Dit telt alleen het bewegende deel mee, ongeacht hoe groot de zone verder is.
-        var fractionThreshold = 0.30 - (state.sensitivity/100) * 0.27; // hoger = gevoeliger
+        var fractionThreshold = 0.30 - (state.sensitivity/100) * 0.27;
         var fraction = prevFrameData ? zoneMotionFraction(frame, prevFrameData, state.calibration[state.armedIndex].xRatio) : null;
-
-        els.debugStatus.textContent =
-          'zone ' + GATES[state.armedIndex].label +
-          ' · beweging ' + (fraction === null ? '—' : (fraction * 100).toFixed(1) + '%') +
-          ' / drempel ' + (fractionThreshold * 100).toFixed(1) + '%' +
-          ' · video ' + video.videoWidth + '×' + video.videoHeight;
 
         if (fraction !== null){
           if (fraction > fractionThreshold){
@@ -479,8 +514,6 @@
         }
       }
       prevFrameData = frame;
-    } else {
-      els.debugStatus.textContent = 'video nog niet klaar (readyState ' + video.readyState + ')';
     }
 
     if (state.running) requestAnimationFrame(analysisLoop);
@@ -524,7 +557,6 @@
     clearTimeout(state.timeoutHandle);
     els.timerDisplay.className = 'timer done';
     els.btnStart.disabled = false;
-    els.btnStart.textContent = 'Start (met signaal)';
 
     if (timedOut){
       els.runStatus.className = 'status error';
@@ -533,7 +565,6 @@
       els.runStatus.className = 'status ok';
       els.runStatus.textContent = 'Meting voltooid.';
     }
-    els.panelResults.style.display = 'block';
     els.btnSend.disabled = !state.results.t30;
   }
 
@@ -572,8 +603,6 @@
 
     fetch(API_URL, {
       method: 'POST',
-      // text/plain voorkomt een CORS-preflight; Apps Script leest de body
-      // zelf als JSON in doPost (e.postData.contents).
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify(payload)
     })
@@ -596,13 +625,11 @@
 
   els.btnReset.addEventListener('click', function(){
     buildResultsTable();
-    els.panelResults.style.display = 'none';
     els.btnSend.disabled = true;
     els.sendStatus.style.display = 'none';
     els.timerDisplay.textContent = '0.00';
     els.timerDisplay.className = 'timer idle';
     els.runStatus.style.display = 'none';
-    els.debugStatus.style.display = 'none';
     updateStartAvailability();
   });
 
