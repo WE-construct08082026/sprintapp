@@ -170,6 +170,18 @@
           <div class="slabel"><span>Gevoeligheid</span><span id="sens-val"></span></div>
           <input type="range" id="sensitivity" min="1" max="100" value="55">
         </div>
+        <div>
+          <div class="slabel"><span>Contrastdrempel</span><span id="contrast-val"></span></div>
+          <input type="range" id="contrast-threshold" min="5" max="50" value="25">
+        </div>
+        <div>
+          <div class="slabel"><span>Bandhoogte</span><span id="band-height-val"></span></div>
+          <input type="range" id="band-height" min="5" max="100" value="20">
+        </div>
+        <div>
+          <div class="slabel"><span>Bandpositie (verticaal)</span><span id="band-pos-val"></span></div>
+          <input type="range" id="band-position" min="0" max="100" value="50">
+        </div>
       </div>
     </div>
   </div>
@@ -230,8 +242,11 @@
   var START_ARM_DELAY_MS = 250;
   var CONSECUTIVE_FRAMES_NEEDED = 2;
   var RUN_TIMEOUT_MS = 20000;
-  var ANALYSIS_W = 160, ANALYSIS_H = 90;
-  var PIXEL_DIFF_THRESHOLD = 25;
+  // We lezen niet meer het volledige beeld uit: enkel een smalle horizontale
+  // band (waar de speler zich op deze afstand bevindt) wordt naar dit kleine
+  // analysebeeld gekopieerd. Dat scheelt rekenwerk én concentreert de
+  // beschikbare scherpte op het relevante stukje beeld.
+  var ANALYSIS_W = 640, ANALYSIS_H = 100;
   var prevFrameData = null;
 
   // Startsequentie: 2 korte waarschuwingspiepjes, dan 1 lange startpiep.
@@ -266,6 +281,12 @@
     widthVal: document.getElementById('width-val'),
     sensitivity: document.getElementById('sensitivity'),
     sensVal: document.getElementById('sens-val'),
+    contrastThreshold: document.getElementById('contrast-threshold'),
+    contrastVal: document.getElementById('contrast-val'),
+    bandHeight: document.getElementById('band-height'),
+    bandHeightVal: document.getElementById('band-height-val'),
+    bandPosition: document.getElementById('band-position'),
+    bandPosVal: document.getElementById('band-pos-val'),
     timerDisplay: document.getElementById('timer-display'),
     btnStart: document.getElementById('btn-start'),
     runStatus: document.getElementById('run-status'),
@@ -281,6 +302,9 @@
     calibration: [],
     zoneWidthRatio: 0.07,
     sensitivity: 55,
+    pixelDiffThreshold: 25,
+    bandHeightRatio: 0.20,
+    bandCenterRatio: 0.50,
     running: false,
     startTime: 0,
     armedIndex: 0,
@@ -301,7 +325,7 @@
     els.btnCamera.textContent = 'Bezig…';
     navigator.mediaDevices.getUserMedia({
       audio: false,
-      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }
+      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } }
     }).then(function(stream){
       video.srcObject = stream;
       return video.play();
@@ -383,8 +407,23 @@
     state.sensitivity = Number(els.sensitivity.value);
     els.sensVal.textContent = state.sensitivity;
   });
+  els.contrastThreshold.addEventListener('input', function(){
+    state.pixelDiffThreshold = Number(els.contrastThreshold.value);
+    els.contrastVal.textContent = state.pixelDiffThreshold;
+  });
   els.zoneWidth.dispatchEvent(new Event('input'));
   els.sensitivity.dispatchEvent(new Event('input'));
+  els.bandHeight.addEventListener('input', function(){
+    state.bandHeightRatio = Number(els.bandHeight.value) / 100;
+    els.bandHeightVal.textContent = els.bandHeight.value + '%';
+  });
+  els.bandPosition.addEventListener('input', function(){
+    state.bandCenterRatio = Number(els.bandPosition.value) / 100;
+    els.bandPosVal.textContent = els.bandPosition.value + '%';
+  });
+  els.contrastThreshold.dispatchEvent(new Event('input'));
+  els.bandHeight.dispatchEvent(new Event('input'));
+  els.bandPosition.dispatchEvent(new Event('input'));
 
   function drawLoop(){
     if (state.cameraOn && video.readyState >= 2){
@@ -396,21 +435,37 @@
 
   function drawOverlays(){
     var w = stage.width, h = stage.height;
+    var bandH = state.bandHeightRatio * h;
+    var bandCenterY = state.bandCenterRatio * h;
+    var y0 = Math.max(0, bandCenterY - bandH/2);
+    var y1 = Math.min(h, bandCenterY + bandH/2);
+
+    // horizontale band tonen, zodat je 'm kan positioneren op de speler
+    stageCtx.save();
+    stageCtx.strokeStyle = 'rgba(255,255,255,0.4)';
+    stageCtx.setLineDash([w*0.01, w*0.008]);
+    stageCtx.lineWidth = Math.max(1, w * 0.0025);
+    stageCtx.beginPath(); stageCtx.moveTo(0, y0); stageCtx.lineTo(w, y0); stageCtx.stroke();
+    stageCtx.beginPath(); stageCtx.moveTo(0, y1); stageCtx.lineTo(w, y1); stageCtx.stroke();
+    stageCtx.restore();
+
     state.calibration.forEach(function(pt, i){
       var color = i < state.armedIndex ? '#2FD9A8' : (i === state.armedIndex && state.running ? '#FF6A3D' : 'rgba(255,255,255,0.35)');
-      drawZone(pt.xRatio, w, h, color, GATES[i].label);
+      drawZone(pt.xRatio, w, y0, y1, color, GATES[i].label);
     });
   }
 
-  function drawZone(xRatio, w, h, color, label){
+  function drawZone(xRatio, w, y0, y1, color, label){
     var zw = w * state.zoneWidthRatio;
     var x = xRatio * w - zw/2;
+    var h = y1 - y0;
     stageCtx.strokeStyle = color;
     stageCtx.lineWidth = Math.max(2, w * 0.004);
-    stageCtx.strokeRect(x, h*0.04, zw, h*0.92);
+    stageCtx.strokeRect(x, y0, zw, h);
     stageCtx.fillStyle = color;
-    stageCtx.font = Math.round(h*0.06) + 'px Inter, sans-serif';
-    stageCtx.fillText(label, x, h*0.035 + h*0.06);
+    var fontSize = Math.max(14, Math.round(w * 0.025));
+    stageCtx.font = fontSize + 'px Inter, sans-serif';
+    stageCtx.fillText(label, x, Math.max(fontSize, y0 - 4));
   }
 
   function clamp01(v){ return Math.max(0, Math.min(1, v)); }
@@ -495,7 +550,14 @@
     var elapsedMs = performance.now() - state.startTime;
 
     if (video.readyState >= 2){
-      analysisCtx.drawImage(video, 0, 0, ANALYSIS_W, ANALYSIS_H);
+      // Enkel de ingestelde band uit de bron kopiëren (niet het volledige beeld),
+      // geschaald naar het kleine analysecanvas. Dat is lichter én scherper
+      // op het relevante stukje dan het hele beeld verkleinen.
+      var vw = video.videoWidth, vh = video.videoHeight;
+      var bandHpx = Math.max(4, state.bandHeightRatio * vh);
+      var bandCenterYpx = state.bandCenterRatio * vh;
+      var sy = Math.max(0, Math.min(vh - bandHpx, bandCenterYpx - bandHpx/2));
+      analysisCtx.drawImage(video, 0, sy, vw, bandHpx, 0, 0, ANALYSIS_W, ANALYSIS_H);
       var frame = analysisCtx.getImageData(0, 0, ANALYSIS_W, ANALYSIS_H).data;
 
       if (elapsedMs >= START_ARM_DELAY_MS && state.armedIndex < GATES.length){
@@ -524,14 +586,16 @@
     var cx = Math.round(xRatio * ANALYSIS_W);
     var x0 = Math.max(0, cx - Math.round(zw/2));
     var x1 = Math.min(ANALYSIS_W, x0 + zw);
-    var y0 = Math.round(ANALYSIS_H * 0.04), y1 = Math.round(ANALYSIS_H * 0.96);
+    // Het analysecanvas komt al overeen met de ingestelde band (zie analysisLoop),
+    // dus hier gebruiken we vrijwel de volledige hoogte ervan.
+    var y0 = Math.round(ANALYSIS_H * 0.02), y1 = Math.round(ANALYSIS_H * 0.98);
     var changed = 0, total = 0;
     for (var y = y0; y < y1; y++){
       for (var x = x0; x < x1; x++){
         var idx = (y * ANALYSIS_W + x) * 4;
         var currLuma = 0.299*currFrame[idx] + 0.587*currFrame[idx+1] + 0.114*currFrame[idx+2];
         var prevLuma = 0.299*prevFrame[idx] + 0.587*prevFrame[idx+1] + 0.114*prevFrame[idx+2];
-        if (Math.abs(currLuma - prevLuma) > PIXEL_DIFF_THRESHOLD) changed++;
+        if (Math.abs(currLuma - prevLuma) > state.pixelDiffThreshold) changed++;
         total++;
       }
     }
